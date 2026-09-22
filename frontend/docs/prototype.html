@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI知识库RAG系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            sidebg: '#1D2129',
+          },
+        },
+      }
+    }
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html,body,#app{
+      height:100%;
+      overflow:hidden;
+    }
+    .menu-item.active{
+      background-color:#2c333f;
+      border-left:3px solid #165DFF;
+    }
+    .session-item.active{
+      background-color:#2c333f;
+    }
+    .tab-item.active{
+      border-bottom:2px solid #165DFF;
+      color:#fff;
+    }
+    .chat-wrap::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-wrap::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- 顶部导航 -->
+  <header class="h-12 bg-white border-b flex items-center px-4 justify-between shadow-sm z-10">
+    <div class="font-bold text-lg text-primary">AI知识库RAG平台</div>
+    <div class="flex items-center gap-4">
+      <span class="text-gray-600">超级管理员</span>
+      <button onclick="logout()" class="text-red-500 text-sm hover:text-red-700">
+        <i class="fa fa-sign-out mr-1"></i>退出登录
+      </button>
+    </div>
+  </header>
+
+  <div class="flex h-[calc(100%-48px)]">
+    <!-- 左侧侧边栏 -->
+    <aside class="w-60 bg-sidebg text-white flex flex-col">
+      <!-- Tab切换：对话 / 设置 -->
+      <div class="flex border-b border-gray-700">
+        <div class="tab-item active flex-1 text-center py-2 cursor-pointer hover:text-white" onclick="switchSideTab('chat')">对话</div>
+        <div class="tab-item flex-1 text-center py-2 cursor-pointer hover:text-white text-gray-400" onclick="switchSideTab('setting')">设置</div>
+      </div>
+
+      <!-- 【对话Tab内容】 -->
+      <div id="tabChat" class="flex-1 flex flex-col min-h-0">
+        <div class="py-2 px-3 flex justify-between items-center">
+          <span class="text-gray-400 text-xs">会话列表</span>
+          <button onclick="newSession()" class="text-primary hover:text-blue-300 text-sm">
+            <i class="fa fa-plus"></i>新建会话
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto min-h-0 px-1" id="sessionList"></div>
+      </div>
+
+      <!-- 【设置Tab内容，权限菜单】 -->
+      <div id="tabSetting" class="flex-1 overflow-y-auto min-h-0 hidden py-2">
+        <div class="px-3 py-2 text-gray-400 text-xs">系统管理</div>
+        <div class="menu-item px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center gap-2" onclick="openAdminPage('knowledge')">
+          <i class="fa fa-upload w-5"></i>知识库上传
+        </div>
+        <div class="menu-item px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center gap-2" onclick="openAdminPage('user')">
+          <i class="fa fa-user-plus w-5"></i>用户管理
+        </div>
+        <div class="menu-item px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center gap-2" onclick="openAdminPage('dept')">
+          <i class="fa fa-sitemap w-5"></i>部门管理
+        </div>
+        <div class="menu-item px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center gap-2" onclick="openAdminPage('role')">
+          <i class="fa fa-user-secret w-5"></i>角色管理
+        </div>
+        <div class="menu-item px-3 py-2 cursor-pointer hover:bg-gray-700 flex items-center gap-2" onclick="openAdminPage('roleAuth')">
+          <i class="fa fa-key w-5"></i>角色授权
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧主区域 -->
+    <main class="flex-1 bg-gray-50 flex flex-col">
+      <!-- 管理页面 -->
+      <div id="adminPage" class="p-4 hidden">
+        <div class="bg-white p-4 rounded shadow">
+          <h2 id="adminTitle" class="text-xl mb-4">管理页面</h2>
+          <p id="adminDesc">管理表单与表格区域</p>
+        </div>
+      </div>
+
+      <!-- 聊天窗口 -->
+      <div id="chatPage" class="flex-1 flex flex-col h-full">
+        <div class="chat-wrap flex-1 overflow-y-auto p-4 space-y-4" id="chatContent">
+          <div class="text-gray-400 text-center mt-20">选择会话，开始对话</div>
+        </div>
+        <!-- 输入框 -->
+        <div class="p-3 bg-white border-t">
+          <div class="flex gap-2">
+            <textarea id="msgInput" class="flex-1 border rounded p-2 h-16 resize-none" placeholder="请输入问题..."></textarea>
+            <button onclick="sendMessage()" class="bg-primary text-white px-4 rounded">发送</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  let currentSessionId = null;
+  let sessionList = [
+    {id:1, title:"RAG知识库咨询"},
+    {id:2, title:"业务文档问答"},
+  ]
+  let sessionChatMap = {}
+  const isLogin = true;
+  if(!isLogin){
+    window.location.href = "./login.html"
+  }
+
+  // 切换侧边Tab：对话 / 设置
+  function switchSideTab(type){
+    const tabChat = document.getElementById("tabChat");
+    const tabSetting = document.getElementById("tabSetting");
+    const tabs = document.querySelectorAll('.tab-item');
+    tabs.forEach(t=>t.classList.remove('active'))
+    if(type === 'chat'){
+      tabs[0].classList.add('active');
+      tabChat.classList.remove('hidden');
+      tabSetting.classList.add('hidden');
+      showChatPage();
+    }else{
+      tabs[1].classList.add('active');
+      tabChat.classList.add('hidden');
+      tabSetting.classList.remove('hidden');
+    }
+  }
+
+  // 会话渲染
+  function renderSessionList(){
+    const wrap = document.getElementById('sessionList')
+    wrap.innerHTML = ''
+    sessionList.forEach(s=>{
+      const div = document.createElement('div')
+      div.className = `session-item px-2 py-2 cursor-pointer hover:bg-gray-700 flex justify-between items-center rounded ${currentSessionId===s.id?'active':''}`
+      div.innerHTML = `
+        <span onclick="openSession(${s.id})" class="truncate flex-1">${s.title}</span>
+        <i class="fa fa-trash-o text-gray-400 hover:text-red-400" onclick="delSession(${s.id})"></i>
+      `
+      wrap.appendChild(div)
+    })
+  }
+  function openSession(id){
+    currentSessionId = id
+    renderSessionList()
+    renderChat()
+    showChatPage()
+  }
+  function newSession(){
+    const newId = Date.now()
+    sessionList.unshift({id:newId, title:"新会话"})
+    sessionChatMap[newId] = []
+    openSession(newId)
+  }
+  function delSession(id){
+    sessionList = sessionList.filter(s=>s.id!==id)
+    delete sessionChatMap[id]
+    if(currentSessionId === id) currentSessionId = null
+    renderSessionList()
+    renderChat()
+  }
+
+  function renderChat(){
+    const chatWrap = document.getElementById("chatContent")
+    if(!currentSessionId){
+      chatWrap.innerHTML = `<div class="text-gray-400 text-center mt-20">选择会话，开始对话</div>`
+      return
+    }
+    const list = sessionChatMap[currentSessionId] || []
+    let html = ''
+    list.forEach(item=>{
+      if(item.role === 'user'){
+        html += `<div class="flex justify-end"><div class="bg-primary text-white p-3 rounded-lg max-w-lg">${item.content}</div></div>`
+      }else{
+        html += `<div class="flex justify-start"><div class="bg-white border p-3 rounded-lg max-w-lg">${item.content}</div></div>`
+      }
+    })
+    chatWrap.innerHTML = html
+    chatWrap.scrollTop = chatWrap.scrollHeight
+  }
+
+  function sendMessage(){
+    const input = document.getElementById("msgInput")
+    const text = input.value.trim()
+    if(!text || !currentSessionId) return
+    if(!sessionChatMap[currentSessionId]) sessionChatMap[currentSessionId] = []
+    sessionChatMap[currentSessionId].push({role:'user', content:text})
+    input.value = ''
+    setTimeout(()=>{
+      sessionChatMap[currentSessionId].push({role:'assistant', content:"AI知识库助手，将检索文档为你回答。"})
+      renderChat()
+    },600)
+    renderChat()
+  }
+
+  function showAdminPage(){
+    document.getElementById("adminPage").classList.remove('hidden')
+    document.getElementById("chatPage").classList.add('hidden')
+  }
+  function showChatPage(){
+    document.getElementById("adminPage").classList.add('hidden')
+    document.getElementById("chatPage").classList.remove('hidden')
+  }
+  const pageTitleMap = {
+    knowledge:"知识库上传",
+    user:"用户管理",
+    dept:"部门管理",
+    role:"角色管理",
+    roleAuth:"角色授权"
+  }
+  function openAdminPage(key){
+    showAdminPage()
+    document.getElementById("adminTitle").innerText = pageTitleMap[key]
+    document.getElementById("adminDesc").innerText = `${pageTitleMap[key]}页面，放置表格、表单`
+  }
+
+  function logout(){
+    alert("退出登录，跳转登录页")
+    window.location.href = "./login.html"
+  }
+
+  renderSessionList()
+</script>
+</body>
+</html>
