@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>菜单功能Agent拆分方案</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:system-ui,'Microsoft YaHei',sans-serif; background:#f7f9fc; color:#1f2329; padding:20px; }
+  .page-title { text-align:center; padding:12px 0 4px; }
+  .page-title h1 { font-size:22px; font-weight:700; }
+  .page-title p { font-size:13px; color:#6b7280; margin-top:4px; }
+  .phase0 { margin-top:18px; background:#e8f0ff; border:2px solid #165DFF; border-radius:10px; padding:14px 18px; }
+  .phase0 .head { font-weight:700; color:#165DFF; font-size:15px; margin-bottom:8px; }
+  .cards { display:flex; flex-wrap:wrap; gap:10px; }
+  .card { background:#fff; border:1px solid #c9d8f8; border-radius:8px; padding:8px 12px; font-size:13px; flex:1; min-width:160px; }
+  .card b { display:block; margin-bottom:2px; }
+  .card span { color:#6b7280; }
+  .arrow { text-align:center; color:#165DFF; font-weight:700; font-size:14px; padding:8px 0; }
+  .lanes { display:flex; flex-wrap:wrap; gap:12px; }
+  .lane { flex:1; min-width:280px; background:#fff; border-radius:10px; overflow:hidden; }
+  .lane-head { color:#fff; padding:8px 14px; font-weight:700; font-size:14px; }
+  .lane-body { padding:12px 14px; }
+  .lane-body .mod { font-size:13px; color:#333; margin-bottom:8px; }
+  .steps { display:flex; flex-direction:column; gap:6px; font-size:12px; }
+  .step { border-radius:6px; padding:6px 10px; }
+  .lane-a { border:2px solid #00b42a; } .lane-a .lane-head { background:#00b42a; } .lane-a .step { background:#eaffea; }
+  .lane-b { border:2px solid #ff7d00; } .lane-b .lane-head { background:#ff7d00; } .lane-b .step { background:#fff4e8; }
+  .lane-c { border:2px solid #722ed1; } .lane-c .lane-head { background:#722ed1; } .lane-c .step { background:#f3e8ff; }
+  .final { background:#e8f0ff; border:2px dashed #165DFF; border-radius:10px; padding:12px 18px; display:flex; flex-wrap:wrap; gap:10px; }
+  .final .item { flex:1; min-width:200px; font-size:13px; }
+  .final .item b { color:#165DFF; }
+  .note { margin-top:16px; background:#fffbe6; border:1px solid #ffd666; border-radius:8px; padding:10px 14px; font-size:13px; color:#614700; }
+</style>
+</head>
+<body>
+
+  <div class="page-title">
+    <h1>菜单功能模块 Agent 拆分方案</h1>
+    <p>原则：地基先行 → 业务域垂直切片 → 并行开发 → 集成联调</p>
+  </div>
+
+  <!-- 阶段0 公共地基 -->
+  <div class="phase0">
+    <div class="head">阶段0 · 公共地基（一个 Agent 串行完成，其他 Agent 等它）</div>
+    <div class="cards">
+      <div class="card"><b>① 数据库全部表结构</b><span>dept / user / role / menu / role_menu / category / knowledge_base + 五级权限字段</span></div>
+      <div class="card"><b>② 初始化数据</b><span>内置超级管理员 + 6个菜单 + 默认角色</span></div>
+      <div class="card"><b>③ 登录 + JWT</b><span>认证、Redis会话</span></div>
+      <div class="card"><b>④ RBAC 权限中间件</b><span>接口级鉴权，全局复用</span></div>
+      <div class="card"><b>⑤ 前端脚手架</b><span>路由守卫 + 登录页 + 布局框架</span></div>
+    </div>
+  </div>
+
+  <div class="arrow">▼ 地基完成后，三路 Agent 并行 ▼</div>
+
+  <!-- 三个并行泳道 -->
+  <div class="lanes">
+
+    <div class="lane lane-a">
+      <div class="lane-head">Agent A · 组织域</div>
+      <div class="lane-body">
+        <div class="mod"><b>负责模块：</b>部门管理 + 用户管理</div>
+        <div class="steps">
+          <div class="step">DB · 部门树表 + 用户表（含 dept_id）</div>
+          <div class="step">API · 部门树CRUD + 用户分页CRUD</div>
+          <div class="step">FE · 部门树页面 + 用户列表页</div>
+          <div class="step">校验 · 删除关联校验 / 用户必选部门</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lane lane-b">
+      <div class="lane-head">Agent B · 权限域</div>
+      <div class="lane-body">
+        <div class="mod"><b>负责模块：</b>角色管理 + 角色授权</div>
+        <div class="steps">
+          <div class="step">DB · 角色表 + role_menu 关联表</div>
+          <div class="step">API · 角色分页CRUD + 菜单树授权</div>
+          <div class="step">FE · 角色列表页 + 授权勾选树页</div>
+          <div class="step">校验 · 菜单动态渲染 + 接口拦截</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lane lane-c">
+      <div class="lane-head">Agent C · 知识域</div>
+      <div class="lane-body">
+        <div class="mod"><b>负责模块：</b>知识库分类 + 知识库上传</div>
+        <div class="steps">
+          <div class="step">DB · 分类树表 + 文档表（五级权限字段）</div>
+          <div class="step">API · 分类树CRUD + 文档分页/上传/删除</div>
+          <div class="step">FE · 分类树页面 + 文档列表上传页</div>
+          <div class="step">校验 · 五级权限落库 + 无修改操作</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="arrow">▼ 三路交付后，统一集成 ▼</div>
+
+  <!-- 集成联调 -->
+  <div class="final">
+    <div class="item"><b>阶段2 · 集成联调</b><br>统一数据初始化 / 菜单动态渲染全链路验证 / 权限绕过测试（越权访问被拦截）</div>
+    <div class="item"><b>阶段3 · 验收</b><br>按 PRD V1.1 逐条核对：树形无限级 / 分页 / 五级权限 / 角色授权即时生效</div>
+  </div>
+
+  <div class="note">
+    <b>建议：</b>先让 Agent A（组织域）跑通最小闭环（部门→用户），作为模板验证表结构、分页、前端页面套路无误后，再放行 Agent B / C 并行，避免 3 个 Agent 按错误套路返工。
+  </div>
+
+</body>
+</html>
