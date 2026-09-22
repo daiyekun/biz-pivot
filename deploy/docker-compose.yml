@@ -1,0 +1,54 @@
+version: "3.8"
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    container_name: pg-biz
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bizuser
+      POSTGRES_PASSWORD: Biz@Pass123
+      POSTGRES_DB: biz_db
+    volumes:
+      - pg-biz-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --requirepass Redis@123 --appendonly yes
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: Admin@123
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+volumes:
+  qdrant-data:
+  pg-biz-data:
+  redis-data:
+  rabbitmq-data:
