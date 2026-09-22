@@ -1,0 +1,85 @@
+# ========= Python 编译缓存 =========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+
+# ========= 虚拟环境（最重要！） =========
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+__pypackages__/
+
+# ========= 环境变量 & 密钥（严禁上传！） =========
+.env
+.env.local
+.env.dev
+.env.prod
+# 保留一份模板给团队参考，!表示不忽略这个示例文件
+!.env.example
+
+# ========= 日志文件 =========
+logs/
+*.log
+*.log.*
+
+# ========= Celery 相关临时文件 =========
+celerybeat-schedule*
+celerybeat.pid
+
+# ========= 测试/覆盖率缓存 =========
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ========= RAG知识库 本地数据（你的项目重点） =========
+# 文档上传目录（用户上传的pdf/md，不能提交）
+uploads/
+# Chroma向量库本地持久化目录（如果用Chroma）
+chroma_db/
+# 文档解析临时切片缓存
+tmp_docs/
+
+# ========= IDE编辑器配置 =========
+# vscode
+.vscode/
+# pycharm
+.idea/
+*.iml
+# mac
+.DS_Store
+# windows
+Thumbs.db
+
+# ========= 数据库本地文件 =========
+*.sqlite
+*.sqlite3
+*.db
+
+# ========= Docker临时 =========
+.dockerignore
+
+# ========= 报表导出文件 =========
+export_reports/
+tmp_export/
