@@ -329,3 +329,46 @@ docker rm rabbitmq
 docker rm rabbitmq
 docker volume rm rabbitmq-data
 ```
+
+### Jaeget
+# PowerShell 一键启动 Jaeger（适配你的 OTel，Docker Desktop）
+
+> 
+> all-in-one 单机版本，**内存存储（容器删除，链路数据清空，适合开发调试）**
+
+```
+docker run -d `
+  --name jaeger `
+  -e COLLECTOR_OTLP_ENABLED=true `
+  -p 16686:16686 `
+  -p 4317:4317 `
+  -p 4318:4318 `
+  --restart unless-stopped `
+  jaegertracing/all-in-one:latest
+```
+
+## 端口说明
+
+- `16686`：Jaeger Web UI，浏览器打开：**[http://localhost:16686](http://localhost:16686)**
+- `4317`：OTLP gRPC（Python OTel SDK 推荐用这个）
+- `4318`：OTLP HTTP 备选
+
+## Python OTel 配置填入 .env
+
+```
+# Jaeger OTLP Endpoint
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
+## 常用管理命令
+
+```
+# 停止
+docker stop jaeger
+# 启动
+docker start jaeger
+# 查看日志
+docker logs jaeger -f
+# 删除容器（⚠️ 链路追踪数据全部清空，内存存储）
+docker rm jaeger
+```
