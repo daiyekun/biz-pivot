@@ -49,3 +49,6 @@ Qdrant向量库
 - 数据库分库，不同业务数据隔离
 - 网关统一入口，统一鉴权、限流
 缺点：运维复杂度显著提升，分布式事务、服务发现、链路追踪等问题需要额外处理
+
+<img width="3744" height="2124" alt="exported_image (1)" src="https://github.com/user-attachments/assets/978f4215-3d04-4f09-a9b3-7ec96b195067" />
+
