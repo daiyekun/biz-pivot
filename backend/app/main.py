@@ -28,6 +28,8 @@ from app.api.v1.chat_role import router as chat_role_router
 from app.api.v1.dept import router as dept_router
 from app.api.v1.user import router as user_router
 from app.api.v1.role import router as role_router
+from app.api.v1.menu import router as menu_router
+from app.api.v1.category import router as category_router
 from app.config.settings import settings
 from app.core.auth_middleware import AuthMiddleware
 from app.core.exceptions import AppError
@@ -103,6 +105,8 @@ app.include_router(chat_role_router, prefix="/api/v1")
 app.include_router(dept_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(role_router, prefix="/api/v1")
+app.include_router(menu_router, prefix="/api/v1")
+app.include_router(category_router, prefix="/api/v1")
 
 # 后续阶段按模块增量挂载（chat/rag/report/menu/category）
 

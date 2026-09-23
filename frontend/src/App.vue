@@ -41,15 +41,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getHealth } from '@/api/system'
 import { logout } from '@/api/auth'
+import { getMyMenus } from '@/api/menu'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+
+const menuPaths = ref([])
 
 const healthOk = ref(null)
 const healthText = computed(() => (healthOk.value === null ? '检测中...' : healthOk.value ? '服务正常' : '服务异常'))
@@ -71,9 +74,33 @@ const adminMenus = [
   { path: '/admin/chat-role', name: '聊天角色', icon: 'ChatDotRound' },
 ]
 
-const menus = computed(() => (userStore.isSuper ? [...baseMenus, ...adminMenus] : baseMenus))
+const menus = computed(() => {
+  const base = [...baseMenus]
+  if (!userStore.isLoggedIn) return base
+  const admin = adminMenus.filter(
+    (m) => userStore.isSuper || menuPaths.value.includes(m.path),
+  )
+  return [...base, ...admin]
+})
 const isLoginPage = computed(() => route.path === '/login')
 const showSidebar = computed(() => userStore.isLoggedIn && !isLoginPage.value)
+
+watch(
+  () => userStore.token,
+  async (token) => {
+    if (!token) {
+      menuPaths.value = []
+      return
+    }
+    try {
+      const data = await getMyMenus()
+      menuPaths.value = data.paths || []
+    } catch (e) {
+      menuPaths.value = []
+    }
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   try {

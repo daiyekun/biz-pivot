@@ -8,6 +8,7 @@ from app.models.sys import (
     SysMenuFunction,
     SysProvider,
     SysRole,
+    SysRoleCategory,
     SysUser,
     SysUserRole,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "SysUserRole",
     "SysMenu",
     "SysMenuFunction",
+    "SysRoleCategory",
     "SysProvider",
     "SysChatRole",
     "SysKnowledgeCategory",

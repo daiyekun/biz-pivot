@@ -109,6 +109,27 @@ class SysMenuFunction(IdMixin, Base):
     )
 
 
+# ---------- 2.6a 角色 - 可访问知识库分类 ----------
+class SysRoleCategory(IdMixin, Base):
+    """角色可访问的知识库分类范围（阶段四知识库权限配置）。
+
+    角色授权「可访问的知识库分类范围」落地于此表；空集合 = 不限制（可访问全部分类），
+    检索时与 knowledge_permission 明细表叠加过滤（阶段六生效）。
+    """
+
+    __tablename__ = "sys_role_category"
+
+    role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("sys_role.id"), comment="角色ID")
+    category_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("sys_knowledge_category.id"), comment="知识库分类ID"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("role_id", "category_id", name="uk_sys_role_category_rc"),
+        Index("idx_sys_role_category_category", "category_id"),
+    )
+
+
 # ---------- 2.13 模型提供商 ----------
 class SysProvider(IdMixin, TimestampMixin, Base):
     __tablename__ = "sys_provider"

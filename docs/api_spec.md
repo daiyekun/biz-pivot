@@ -114,3 +114,45 @@
 | `/chat-role/{id}` | DELETE | 删除聊天角色（校验会话引用） |
 
 > 鉴权：同上，需登录。
+
+---
+
+## 6. 菜单授权 `/api/v1/menu`（阶段四）
+
+角色授权 = 系统菜单权限 + 知识库权限双层，保存即时生效（写入 `sys_menu_function` / `sys_role_category`，同步刷新 Redis `role:menu:{role_id}`）。
+
+| 接口 | 方法 | 说明 |
+| ---- | ---- | ---- |
+| `/menu/tree` | GET | 系统菜单权限树（整树不分页，需 `permission:grant`） |
+| `/menu/role/{role_id}` | GET | 角色已授权菜单 ID 集合（需 `permission:grant`） |
+| `/menu/role/{role_id}` | PUT | 保存角色菜单授权，入参 `{ "menu_ids": [1,2,6] }`（需 `permission:grant`） |
+| `/menu/role/{role_id}/categories` | GET | 角色可访问知识库分类范围（需 `permission:grant`） |
+| `/menu/role/{role_id}/categories` | PUT | 保存角色可访问分类，入参 `{ "category_ids": [1,2] }`，空数组=不限制（需 `permission:grant`） |
+| `/menu/mine` | GET | 当前登录用户可访问菜单路由（全员，前端动态菜单用） |
+
+### 6.0 知识库分类 `/api/v1/category`（阶段四只读）
+
+| 接口 | 方法 | 说明 |
+| ---- | ---- | ---- |
+| `/category/tree` | GET | 无限级分类树（整树不分页；后台只读元数据，任一后台菜单授权可读） |
+
+> 权限标识 `code`：部门 `dept:manage`、用户 `user:manage`、角色 `role:manage`、角色授权 `permission:grant`、知识库分类 `category:manage`、知识库上传 `knowledge:upload`、模型提供商 `provider:manage`、聊天角色 `chat_role:manage`。
+
+### 6.1 后端功能权限拦截（D1 修复后）
+
+后台管理菜单授权后**真实可用**（前端隐藏 + 后端拦截双层）：
+
+| 模块 | 写操作拦截 | 只读元数据 |
+| ---- | ---------- | ---------- |
+| 部门 `/dept` | `dept:manage` | `/dept/tree` → `require_backend_access`（任一后台菜单授权） |
+| 用户 `/user` | `user:manage` | — |
+| 角色 `/role` | `role:manage` | `/role`、`/role/all` → `require_backend_access` |
+| 角色授权 `/menu` | `permission:grant` | — |
+| 知识库分类 `/category` | `category:manage`（阶段六） | `/category/tree` → `require_backend_access` |
+| 模型提供商 `/provider` | `provider:manage` | — |
+| 聊天角色 `/chat-role` | `chat_role:manage` | — |
+
+- `core/permission.py` 统一校验：`has_menu_permission`（后台入口）、`has_upload_permission`（知识库上传，默认全员无权限）、`has_category_permission`（分类管理）、`has_backend_access`（任一后台菜单）
+- `api/deps.py` 提供 `require_menu_permission(code)`、`require_backend_access`、`require_upload_permission`、`require_category_permission` 依赖（阶段六 RAG 接口复用）
+- 授权变更即时刷新 `role:menu:{role_id}` 缓存，后端二次拦截实时生效
+

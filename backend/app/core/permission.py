@@ -96,14 +96,51 @@ def has_menu_permission(ctx: UserContext, menu_code: str) -> bool:
     return _role_has_menu(ctx.role_ids, menu_code)
 
 
+def has_category_permission(ctx: UserContext) -> bool:
+    """是否拥有知识库分类管理权限（PRD 4.1：仅授权角色 + 超管可用）"""
+    if ctx.is_super:
+        return True
+    return _role_has_menu(ctx.role_ids, constants.MENU_CODE_CATEGORY)
+
+
+# 全部后台管理菜单权限标识（用于「后台访问」粗粒度判定：任一授权即可）
+BACKEND_MENU_CODES = (
+    constants.MENU_CODE_DEPT,
+    constants.MENU_CODE_USER,
+    constants.MENU_CODE_ROLE,
+    constants.MENU_CODE_PERMISSION,
+    constants.MENU_CODE_CATEGORY,
+    constants.MENU_CODE_KNOWLEDGE,
+    constants.MENU_CODE_PROVIDER,
+    constants.MENU_CODE_CHAT_ROLE,
+)
+
+
+def has_backend_access(ctx: UserContext) -> bool:
+    """是否拥有任一后台管理菜单权限（部门树/角色列表等只读元数据接口复用）"""
+    if ctx.is_super:
+        return True
+    return any(_role_has_menu(ctx.role_ids, code) for code in BACKEND_MENU_CODES)
+
+
 def _role_has_menu(role_ids: list[int], menu_code: str) -> bool:
-    """从 Redis 角色菜单缓存读取判定；缓存缺失默认拒绝（接口层二次拦截兜底在阶段四完善）。"""
+    """从 Redis 角色菜单缓存读取判定；缓存缺失默认拒绝。
+
+    缓存由 get_current_user 鉴权链路预热（见 api/deps.py），授权变更时
+    menu_service 即时刷新，保证后端接口层二次拦截实时生效。
+    """
     for role_id in role_ids:
-        key = constants.REDIS_KEY_ROLE_MENU.format(role_id=role_id)
-        menus = redis_client.get_json(key)
+        menus = get_role_menus(role_id)
         if isinstance(menus, list) and menu_code in menus:
             return True
     return False
+
+
+def get_role_menus(role_id: int) -> list[str] | None:
+    """读取角色菜单缓存（codes），未命中返回 None（供预热判断）"""
+    key = constants.REDIS_KEY_ROLE_MENU.format(role_id=role_id)
+    menus = redis_client.get_json(key)
+    return menus if isinstance(menus, list) else None
 
 
 def cache_role_menus(role_id: int, menu_codes: list[str]) -> None:

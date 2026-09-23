@@ -79,6 +79,7 @@
 | 12 | doc\_parse_task         | 文档异步解析任务    | **新增**              |
 | 13 | sys\_provider           | 模型提供商        | **新增（V1.2）**              |
 | 14 | sys\_chat\_role         | 智能聊天角色      | **新增（V1.2）**              |
+| 15 | sys\_role\_category     | 角色 - 可访问知识分类 | **新增（V1.3 阶段四）**              |
 
 
 
@@ -192,7 +193,7 @@
 
 ### 2.5 sys\_menu（菜单定义表）【新增】
 
-> 原文档只有角色 - 菜单关联表，缺少菜单本身定义。菜单初始化数据在系统启动时写入（部门管理、用户管理、角色管理、角色授权、知识库分类、知识库上传）。
+> 原文档只有角色 - 菜单关联表，缺少菜单本身定义。菜单初始化数据在系统启动时写入（部门管理、用户管理、角色管理、角色授权、知识库分类、知识库上传、模型提供商、聊天角色）。
 
 
 
@@ -202,8 +203,10 @@
 | parent\_id   | 父菜单 ID | BIGINT       | 0        | 0 = 顶级（用于菜单树） |
 | name         | 菜单名称   | VARCHAR(50)  | -        |               |
 | path         | 前端路由   | VARCHAR(100) | -        | 如 /admin/user |
+| code         | 权限标识   | VARCHAR(50)  | ''       | 如 `dept:manage`、`knowledge:upload`（阶段四后端拦截核心标识） |
 | icon         | 图标     | VARCHAR(50)  | -        |               |
 | sort\_order  | 排序     | INT          | 0        |               |
+| page\_type   | 页面类型   | VARCHAR(20)  | -        | `tree`=树形（不分页） `list`=分页列表 |
 | state        | 状态     | SMALLINT     | 0        | 0 = 启用 1 = 禁用 |
 | create\_time | 创建时间   | TIMESTAMP    | now()    |               |
 
@@ -223,6 +226,21 @@
 | create\_time | 创建时间  | TIMESTAMP | now()        |
 
 **索引：** `uk_role_menu`（role\_id, menu\_id 唯一）；`idx_menu`（menu\_id）
+
+### 2.6a sys\_role\_category（角色 - 可访问知识分类表）【V1.3 阶段四新增】
+
+> 角色授权「知识库权限配置」中的「可访问知识库分类范围」落地于此表。空集合 = 不限制（可访问全部分类）；检索时与 `knowledge_permission` 明细表叠加过滤（阶段六生效）。
+
+
+
+| 字段           | 描述     | 类型        | 备注                     |
+| ------------ | ------ | --------- | ---------------------- |
+| id           | 主键     | BIGINT    | IDENTITY               |
+| role\_id     | 角色 ID  | BIGINT    | 外键→sys\_role           |
+| category\_id | 分类 ID  | BIGINT    | 外键→sys\_knowledge\_category |
+| create\_time | 创建时间   | TIMESTAMP | now()                  |
+
+**索引：** `uk_role_category`（role\_id, category\_id 唯一）；`idx_category`（category\_id）
 
 ### 2.7 sys\_knowledge\_category（知识分类表，树形）
 

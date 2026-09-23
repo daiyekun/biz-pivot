@@ -6,13 +6,13 @@
 - DELETE /api/v1/user/{id}               删除（超管不可删）
 - PUT    /api/v1/user/{id}/password      重置密码
 - PUT    /api/v1/user/{id}/state         启用 / 禁用
-鉴权：仅超级管理员。
+鉴权：user:manage 菜单权限（超管全量）。
 """
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_super_admin
+from app.api.deps import require_menu_permission
 from app.config import constants
 from app.core.database import get_db
 from app.schemas.common import PageResult
@@ -29,7 +29,7 @@ from app.services.user_service import UserService
 router = APIRouter(
     prefix="/user",
     tags=["用户管理"],
-    dependencies=[Depends(require_super_admin)],
+    dependencies=[Depends(require_menu_permission(constants.MENU_CODE_USER))],
 )
 
 _service = UserService()

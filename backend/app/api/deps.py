@@ -22,6 +22,18 @@ logger = logging.getLogger(__name__)
 
 _bearer = HTTPBearer(auto_error=False)
 
+# 延迟导入，避免模块加载期循环依赖
+_menu_service = None
+
+
+def _get_menu_service():
+    global _menu_service
+    if _menu_service is None:
+        from app.services.menu_service import MenuService
+
+        _menu_service = MenuService()
+    return _menu_service
+
 
 @dataclass
 class CurrentUser:
@@ -60,6 +72,11 @@ def get_current_user(
             dept_path = dept.path
     ctx = perm.build_user_context(user, role_ids, dept_path)
     perm.cache_user_context(ctx)
+    # 预热角色菜单缓存（role:menu:{role_id}），供后端接口层功能权限二次拦截
+    try:
+        _get_menu_service().warm_role_menus(db, role_ids)
+    except Exception as exc:  # noqa: BLE001  预热失败不阻断鉴权
+        logger.warning("预热角色菜单缓存失败：%s", exc)
     return CurrentUser(user=user, ctx=ctx)
 
 
@@ -74,6 +91,31 @@ def require_upload_permission(current: CurrentUser = Depends(get_current_user)) 
     """仅授权角色可上传文档（PRD 4.1 强约束）"""
     if not perm.has_upload_permission(current.ctx):
         raise ForbiddenError("您没有知识库文档上传权限，请联系超级管理员授权")
+    return current
+
+
+def require_menu_permission(menu_code: str):
+    """通用菜单功能权限拦截器（阶段四：后台入口 / 知识库上传 / 分类管理）"""
+
+    def checker(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if not perm.has_menu_permission(current.ctx, menu_code):
+            raise ForbiddenError("您没有该功能权限，请联系超级管理员授权")
+        return current
+
+    return checker
+
+
+def require_category_permission(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """仅授权角色可进行知识库分类管理（PRD 4.1）"""
+    if not perm.has_category_permission(current.ctx):
+        raise ForbiddenError("您没有知识库分类管理权限，请联系超级管理员授权")
+    return current
+
+
+def require_backend_access(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """任一后台管理菜单授权即可访问的只读元数据接口（部门树 / 角色列表等）"""
+    if not perm.has_backend_access(current.ctx):
+        raise ForbiddenError("您没有后台管理权限，请联系超级管理员授权")
     return current
 
 

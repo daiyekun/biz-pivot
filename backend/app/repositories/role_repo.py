@@ -1,10 +1,10 @@
 """角色（sys_role）仓储层。"""
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.config import constants
-from app.models.sys import SysRole, SysUser, SysUserRole
+from app.models.sys import SysMenuFunction, SysRole, SysRoleCategory, SysUser, SysUserRole
 
 
 class RoleRepository:
@@ -63,6 +63,9 @@ class RoleRepository:
         role.state = constants.STATE_DELETED
         # 释放唯一名称（软删后允许重建同名角色，避免 uk_sys_role_name 冲突）
         role.name = self._free_name(role.name, role.id)
+        # 清理角色授权关联（菜单授权 + 可访问分类范围）
+        db.execute(delete(SysMenuFunction).where(SysMenuFunction.role_id == role.id))
+        db.execute(delete(SysRoleCategory).where(SysRoleCategory.role_id == role.id))
         db.commit()
 
     def _free_name(self, name: str, role_id: int) -> str:
