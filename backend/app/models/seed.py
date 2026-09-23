@@ -164,10 +164,14 @@ def seed_super_admin(db: Session) -> None:
 
 
 def init_db_and_seed() -> None:
-    """一键初始化：建表 + 菜单 + 超管（阶段一交付的初始化能力）"""
-    from app.core.database import init_db
+    """一键初始化：建表 + 迁移 + 菜单 + 超管（阶段一交付的初始化能力）"""
+    from app.core.database import engine, init_db
 
     init_db()
+
+    from app.core.migrations import run_migrations
+
+    run_migrations(engine)
 
     from app.core.database import SessionLocal
 
