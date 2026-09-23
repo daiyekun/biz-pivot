@@ -1,6 +1,6 @@
-"""系统种子数据：内置超级管理员、系统菜单初始化（幂等）。
+"""系统种子数据：内置超级管理员、系统菜单、默认模型提供商、系统聊天角色（幂等）。
 
-对应 PRD 7.1 系统初始化流程：启动建表 → 创建超管 → 初始化菜单。
+对应 PRD 7.1 系统初始化流程：启动建表 → 创建超管 → 初始化菜单 → 初始化提供商/聊天角色。
 """
 
 import logging
@@ -12,7 +12,7 @@ from app.config import constants
 from app.config.settings import settings
 from app.core import auth as auth_core
 from app.core import redis_client
-from app.models.sys import SysDepartment, SysMenu, SysUser
+from app.models.sys import SysChatRole, SysDepartment, SysMenu, SysProvider, SysUser
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def _get_or_create_root_company(db: Session) -> SysDepartment:
 
 
 def seed_menus(db: Session) -> None:
-    """系统启动自动生成 6 个后台管理菜单（幂等）"""
+    """系统启动自动生成后台管理菜单（幂等）"""
     created = 0
     for m in constants.MENU_SEEDS:
         exists = db.scalar(select(SysMenu).where(SysMenu.path == m["path"]))
@@ -70,6 +70,57 @@ def seed_menus(db: Session) -> None:
     if created:
         db.commit()
         logger.info("系统初始化：写入菜单 %s 条", created)
+
+
+def seed_default_provider(db: Session) -> SysProvider | None:
+    """按 .env 的 LLM 配置创建默认模型提供商（幂等，无 LLM 配置则跳过）。"""
+    if not settings.llm_base_url:
+        logger.info("未配置 LLM_BASE_URL，跳过默认模型提供商种子")
+        return None
+
+    exists = db.scalar(
+        select(SysProvider).where(SysProvider.name == constants.DEFAULT_PROVIDER_NAME)
+    )
+    if exists is not None:
+        return exists
+
+    provider = SysProvider(
+        name=constants.DEFAULT_PROVIDER_NAME,
+        endpoint=settings.llm_base_url,
+        model=settings.llm_model or "",
+        api_key=settings.llm_api_key or "",
+    )
+    db.add(provider)
+    db.commit()
+    db.refresh(provider)
+    logger.info("系统初始化：创建默认模型提供商 id=%s", provider.id)
+    return provider
+
+
+def seed_chat_roles(db: Session) -> None:
+    """内置系统聊天角色（通用助手 / 意图识别 / 语义识别，幂等）。
+
+    系统发起聊天（意图识别、语义识别等）时程序直接指定这些角色。
+    """
+    provider = seed_default_provider(db)
+    created = 0
+    for item in constants.CHAT_ROLE_SEEDS:
+        exists = db.scalar(select(SysChatRole).where(SysChatRole.name == item["name"]))
+        if exists is not None:
+            continue
+        db.add(
+            SysChatRole(
+                name=item["name"],
+                description=item.get("description"),
+                system_prompt=item.get("system_prompt"),
+                temperature=item.get("temperature", constants.DEFAULT_TEMPERATURE),
+                provider_id=provider.id if provider else None,
+            )
+        )
+        created += 1
+    if created:
+        db.commit()
+        logger.info("系统初始化：写入聊天角色 %s 条", created)
 
 
 def seed_super_admin(db: Session) -> None:
@@ -106,6 +157,7 @@ def init_db_and_seed() -> None:
     with SessionLocal() as db:
         seed_menus(db)
         seed_super_admin(db)
+        seed_chat_roles(db)
 
     # 清除可能残留的旧缓存
     for key in redis_client.get_redis().scan_iter("user:perm:*"):

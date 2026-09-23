@@ -3,7 +3,7 @@
 对应数据库设计 2.1 ~ 2.6。
 """
 
-from sqlalchemy import BigInteger, ForeignKey, Index, SmallInteger, String, UniqueConstraint
+from sqlalchemy import BigInteger, Float, ForeignKey, Index, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, StateMixin, TimestampMixin
@@ -106,4 +106,36 @@ class SysMenuFunction(IdMixin, Base):
     __table_args__ = (
         UniqueConstraint("role_id", "menu_id", name="uk_sys_menu_function_rm"),
         Index("idx_sys_menu_function_menu", "menu_id"),
+    )
+
+
+# ---------- 2.13 模型提供商 ----------
+class SysProvider(IdMixin, TimestampMixin, Base):
+    __tablename__ = "sys_provider"
+
+    name: Mapped[str] = mapped_column(String(100), comment="提供商名称")
+    endpoint: Mapped[str] = mapped_column(String(255), comment="API调用地址")
+    model: Mapped[str] = mapped_column(String(100), comment="模型名称")
+    api_key: Mapped[str] = mapped_column(String(500), default="", comment="API密钥")
+
+    __table_args__ = (
+        Index("uk_sys_provider_name", "name", unique=True),
+    )
+
+
+# ---------- 2.14 智能聊天角色 ----------
+class SysChatRole(IdMixin, TimestampMixin, Base):
+    __tablename__ = "sys_chat_role"
+
+    name: Mapped[str] = mapped_column(String(100), comment="角色名称")
+    description: Mapped[str | None] = mapped_column(String(200), nullable=True, comment="角色描述")
+    system_prompt: Mapped[str | None] = mapped_column(String(4000), nullable=True, comment="系统提示词")
+    temperature: Mapped[float] = mapped_column(Float, default=0.7, comment="模型温度，默认0.7")
+    provider_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("sys_provider.id"), nullable=True, comment="模型提供商ID"
+    )
+
+    __table_args__ = (
+        Index("uk_sys_chat_role_name", "name", unique=True),
+        Index("idx_sys_chat_role_provider", "provider_id"),
     )

@@ -1,4 +1,4 @@
-# 商枢 BizPivot 数据库详细设计文档 V1.1（PostgreSQL 版）
+# 商枢 BizPivot 数据库详细设计文档 V1.2（PostgreSQL 版）
 
 ## 1. 文档说明与约定
 
@@ -17,6 +17,16 @@
 * `knowledge_base` 索引从 7 个精简为 2 个，降低插入写放大
 
 * 检索权限过滤以 Redis 白名单 + Qdrant payload 过滤为主路径
+
+**V1.2 变更说明：**
+
+
+
+* 新增 `sys_provider`（模型提供商）与 `sys_chat_role`（智能聊天角色）两张表
+
+* `chat_session` 新增 `chat_role_id` 外键，强制会话关联聊天角色（先选角色才能建会话）
+
+* `chat_message.role` 由 0=用户/1=AI 扩展为枚举：0=系统 1=用户 2=助手 3=工具
 
 ### 1.2 设计原则
 
@@ -64,9 +74,11 @@
 | 7  | sys\_knowledge\_category | 知识分类（树形）    | 原文档完善               |
 | 8  | knowledge\_base          | 知识库文档主表     | 原文档完善（V1.1 去权限冗余字段） |
 | 9  | knowledge\_permission    | 知识库权限明细表    | **新增（V1.1 唯一权限表）**  |
-| 10 | chat\_session            | 对话会话        | **新增**              |
-| 11 | chat\_message            | 对话消息        | **新增**              |
-| 12 | doc\_parse\_task         | 文档异步解析任务    | **新增**              |
+| 10 | chat\_session            | 对话会话        | **新增（V1.2 关联聊天角色）**              |
+| 11 | chat\_message            | 对话消息        | **新增（V1.2 角色枚举）**              |
+| 12 | doc\_parse_task         | 文档异步解析任务    | **新增**              |
+| 13 | sys\_provider           | 模型提供商        | **新增（V1.2）**              |
+| 14 | sys\_chat\_role         | 智能聊天角色      | **新增（V1.2）**              |
 
 
 
@@ -324,7 +336,7 @@
 
 * 删除文档 → 同步删除该 kb\_id 全部权限行
 
-### 2.10 chat\_session（对话会话表）【新增】
+### 2.10 chat\_session（对话会话表）【V1.2 关联聊天角色】
 
 
 
@@ -332,14 +344,15 @@
 | ------------ | ---- | ------------ | ------------- |
 | id           | 会话主键 | BIGINT       | IDENTITY      |
 | user\_id     | 所属用户 | BIGINT       | 外键→sys\_user  |
+| chat\_role\_id | 聊天角色ID | BIGINT     | 外键→sys\_chat\_role，**必填（先选角色才能建会话）** |
 | title        | 会话标题 | VARCHAR(200) |               |
 | state        | 状态   | SMALLINT     | 0 = 正常 3 = 删除 |
 | create\_time | 创建时间 | TIMESTAMP    | now()         |
 | update\_time | 更新时间 | TIMESTAMP    | now()         |
 
-**索引：** `idx_user_time`（user\_id, update\_time）—— 会话列表按时间倒序
+**索引：** `idx_user_time`（user\_id, update\_time）—— 会话列表按时间倒序；`idx_session_role`（chat\_role\_id）—— 按角色反查会话
 
-### 2.11 chat\_message（对话消息表）【新增】
+### 2.11 chat\_message（对话消息表）【V1.2 角色枚举】
 
 
 
@@ -347,7 +360,7 @@
 | ------------ | ------- | --------- | ---------------- |
 | id           | 消息主键    | BIGINT    | IDENTITY         |
 | session\_id  | 会话 ID   | BIGINT    | 外键→chat\_session |
-| role         | 角色      | SMALLINT  | 0 = 用户 1=AI      |
+| role         | 消息角色    | SMALLINT  | **枚举：0=系统 1=用户 2=助手 3=工具** |
 | content      | 消息内容    | TEXT      |                  |
 | token\_count | token 数 | INT       | 用于统计             |
 | create\_time | 创建时间    | TIMESTAMP | now()            |
@@ -373,6 +386,43 @@
 | update\_time     | 更新时间         | TIMESTAMP     | now()                         |
 
 **索引：** `idx_kb`（kb\_id）；`idx_status`（status）
+
+### 2.13 sys\_provider（模型提供商表）【V1.2 新增】
+
+> 后台【模型提供商】页面配置多个提供商，聊天角色通过 `provider_id` 绑定指定提供商；未绑定时回退到 .env 默认 LLM 配置。
+
+
+
+| 字段           | 描述     | 类型           | 默认   | 备注              |
+| ------------ | ------ | ------------ | ---- | --------------- |
+| id           | 提供商主键  | BIGINT       | IDENTITY | 主键自增            |
+| name         | 提供商名称  | VARCHAR(100) | -    | 唯一索引            |
+| endpoint     | API调用地址 | VARCHAR(255) | -    | 如 https://x/v1  |
+| model        | 模型名称   | VARCHAR(100) | -    |                 |
+| api\_key     | API密钥  | VARCHAR(500) | ''   | 敏感信息，列表脱敏       |
+| create\_time | 创建时间   | TIMESTAMP    | now() |                 |
+| update\_time | 更新时间   | TIMESTAMP    | now() | 应用层维护           |
+
+**索引：** `uk_provider_name`（name 唯一）
+
+### 2.14 sys\_chat\_role（智能聊天角色表）【V1.2 新增】
+
+> 聊天角色绑定系统提示词、模型温度与模型提供商；系统发起聊天（意图识别/语义识别等）由程序直接指定内置角色。
+
+
+
+| 字段             | 描述      | 类型           | 默认  | 备注                        |
+| -------------- | ------- | ------------ | --- | ------------------------- |
+| id             | 角色主键    | BIGINT       | IDENTITY | 主键自增                      |
+| name           | 角色名称    | VARCHAR(100) | -   | 唯一索引                      |
+| description    | 角色描述    | VARCHAR(200) | -   | 可空                        |
+| system\_prompt | 系统提示词   | VARCHAR(4000) | -   | 可空                        |
+| temperature    | 模型温度    | FLOAT        | 0.7 | 默认 0.7                    |
+| provider\_id   | 模型提供商ID | BIGINT       | -   | 外键→sys\_provider，可空        |
+| create\_time   | 创建时间    | TIMESTAMP    | now() |                           |
+| update\_time   | 更新时间    | TIMESTAMP    | now() | 应用层维护                     |
+
+**索引：** `uk_chat_role_name`（name 唯一）；`idx_chat_role_provider`（provider\_id）
 
 
 
@@ -528,6 +578,9 @@ WHERE kp.target\_id IN (:my\_user\_id, :my\_dept\_ids, :my\_company\_id);
 | 分类归属            | knowledge\_base 增加 category\_id（上传必填分类）                  |
 | 解析 / 向量化任务表     | 异步任务状态可追踪、可重试                                            |
 | 会话 / 消息表        | 聊天功能数据落库（AI 对话模块需要）                                      |
+| 模型提供商表          | 新增 sys\_provider，支持配置多个模型提供商，聊天角色可绑定                    |
+| 聊天角色表           | 新增 sys\_chat\_role，会话通过 chat\_role\_id 关联角色，先选角色才能建会话     |
+| 消息角色枚举          | chat\_message.role 扩展为 0=系统 1=用户 2=助手 3=工具                  |
 | 逻辑删除统一          | state=3，全部列表查询带 state 条件                                 |
 | 时间字段统一          | create\_time /update\_time 全覆盖（PG 用 TIMESTAMP）           |
 | 缓存与失效策略         | Redis 权限上下文 + 白名单，权限实时生效                                 |

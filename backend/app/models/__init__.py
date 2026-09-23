@@ -2,9 +2,11 @@
 
 from app.models.base import Base, IdMixin, StateMixin, TimestampMixin
 from app.models.sys import (
+    SysChatRole,
     SysDepartment,
     SysMenu,
     SysMenuFunction,
+    SysProvider,
     SysRole,
     SysUser,
     SysUserRole,
@@ -29,6 +31,8 @@ __all__ = [
     "SysUserRole",
     "SysMenu",
     "SysMenuFunction",
+    "SysProvider",
+    "SysChatRole",
     "SysKnowledgeCategory",
     "KnowledgeBase",
     "KnowledgePermission",

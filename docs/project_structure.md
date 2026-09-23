@@ -59,7 +59,9 @@ biz-pivot/
 │   │   │       ├── role/        # 角色管理
 │   │   │       ├── permission/  # 角色授权（菜单权限+知识库权限）
 │   │   │       ├── category/    # 知识库分类（无限级树形）
-│   │   │       └── knowledge/   # 知识库上传管理
+│   │   │       ├── knowledge/   # 知识库上传管理
+│   │   │       ├── provider/    # 模型提供商设置（V1.2）
+│   │   │       └── chatrole/    # 智能聊天角色管理（V1.2）
 │   │   ├── stores/              # Pinia全局状态：对话列表、模型配置、全局参数
 │   │   ├── router/              # 前端路由配置
 │   │   ├── utils/               # 前端通用工具方法
@@ -87,7 +89,9 @@ biz-pivot/
 │   │   │       ├── user.py       # 用户管理接口（CRUD、分页、筛选）
 │   │   │       ├── role.py       # 角色管理接口（CRUD、分页）
 │   │   │       ├── menu.py       # 菜单管理接口（权限树、授权）
-│   │   │       └── category.py   # 知识库分类接口（树形结构）
+│   │   │       ├── category.py   # 知识库分类接口（树形结构）
+│   │   │       ├── provider.py   # 模型提供商接口（CRUD）
+│   │   │       └── chat_role.py  # 智能聊天角色接口（CRUD）
 │   │   │
 │   │   ├── core/                 # 底层核心能力（全局复用、无业务耦合）
 │   │   │   ├── auth.py           # 认证模块：JWT Token生成/校验、用户身份解析
@@ -107,7 +111,9 @@ biz-pivot/
 │   │   │   ├── user_service.py   # 用户管理业务（CRUD、部门归属、角色绑定）
 │   │   │   ├── role_service.py   # 角色管理业务（CRUD、权限配置）
 │   │   │   ├── menu_service.py   # 菜单管理业务（权限树、授权逻辑）
-│   │   │   └── category_service.py # 知识库分类业务（树形结构）
+│   │   │   ├── category_service.py # 知识库分类业务（树形结构）
+│   │   │   ├── provider_service.py # 模型提供商业务（CRUD、校验）
+│   │   │   └── chat_role_service.py # 聊天角色业务（CRUD、绑定提供商）
 │   │   │
 │   │   ├── tasks/                # Celery异步重型任务（解耦耗时操作）
 │   │   │   ├── celery_app.py     # Celery实例初始化、队列配置
@@ -122,7 +128,9 @@ biz-pivot/
 │   │   │   ├── user_repo.py      # 用户数据读写
 │   │   │   ├── role_repo.py      # 角色数据读写
 │   │   │   ├── menu_repo.py      # 菜单数据读写
-│   │   │   └── category_repo.py  # 知识库分类数据读写
+│   │   │   ├── category_repo.py  # 知识库分类数据读写
+│   │   │   ├── provider_repo.py  # 模型提供商数据读写
+│   │   │   └── chat_role_repo.py # 聊天角色数据读写
 │   │   │
 │   │   ├── schemas/              # Pydantic数据模型（入参、出参、数据结构体）
 │   │   │   ├── chat_schema.py
@@ -133,6 +141,8 @@ biz-pivot/
 │   │   │   ├── role_schema.py    # 角色数据模型
 │   │   │   ├── menu_schema.py    # 菜单数据模型
 │   │   │   ├── category_schema.py # 知识库分类数据模型
+│   │   │   ├── provider_schema.py # 模型提供商数据模型
+│   │   │   ├── chat_role_schema.py # 聊天角色数据模型
 │   │   │   └── permission_schema.py # 权限数据模型
 │   │   │
 │   │   └── utils/                # 通用工具函数
@@ -148,7 +158,7 @@ biz-pivot/
 ├── docs/                         # 项目全套文档
 │   ├── README.md                 # 文档首页
 │   ├── project_structure.md      # 【本文档】项目目录与架构说明
-│   ├── biz_pivot_prd.md          # 产品需求文档V1.1
+│   ├── biz_pivot_prd.md          # 产品需求文档V1.2
 │   ├── architecture.md           # 系统分布式架构、微服务演进方案
 │   ├── api_spec.md               # 统一接口文档
 │   ├── environment.md            # 环境部署、依赖安装指南
@@ -192,6 +202,10 @@ biz-pivot/
 
     - **knowledge/**：知识库上传管理（列表分页、五级数据权限设置）
 
+    - **provider/**：模型提供商设置（列表分页、多提供商配置、API密钥脱敏）
+
+    - **chatrole/**：智能聊天角色管理（列表分页、系统提示词、温度、绑定提供商）
+
 - **stores**：全局状态管理，存储对话历史、系统配置，适配页面刷新持久化
 
 - **router**：前端路由配置，根据用户权限动态生成菜单
@@ -226,6 +240,10 @@ biz-pivot/
 
 - **category.py**：知识库分类接口（树形结构）
 
+- **provider.py**：模型提供商接口（列表、新增、修改、删除）
+
+- **chat_role.py**：智能聊天角色接口（列表、新增、修改、删除）
+
 #### 4\.2\.3 core 核心层
 
 项目底层底座，无业务耦合，可全局复用：Token计算、LLM请求、SSE推送、Redis连接、异常统一处理。是支撑AI能力的基础。
@@ -256,6 +274,10 @@ biz-pivot/
 
 - **category\_service.py**：知识库分类业务（树形结构）
 
+- **provider\_service.py**：模型提供商业务（CRUD、名称去重、引用校验）
+
+- **chat\_role\_service.py**：聊天角色业务（CRUD、绑定提供商、会话引用校验）
+
 #### 4\.2\.5 tasks 异步任务层
 
 专门承载**耗时、阻塞型任务**：大文件解析、批量向量化、复杂报表计算。避免阻塞Web服务，大幅提升并发和用户体验。
@@ -280,6 +302,10 @@ biz-pivot/
 
 - **category\_repo.py**：知识库分类数据读写
 
+- **provider\_repo.py**：模型提供商数据读写
+
+- **chat\_role\_repo.py**：聊天角色数据读写
+
 #### 4\.2\.7 schemas 模型层
 
 统一请求、响应、数据库数据结构，自动参数校验、类型约束，保证接口规范统一。
@@ -300,13 +326,17 @@ biz-pivot/
 
 - **category\_schema.py**：知识库分类数据模型
 
+- **provider\_schema.py**：模型提供商数据模型
+
+- **chat\_role\_schema.py**：聊天角色数据模型
+
 - **permission\_schema.py**：权限数据模型（功能权限+数据权限）
 
 ## 5\. 文档目录规范
 
 - **docs/project\_structure\.md**：当前文件，团队开发统一目录标准
 
-- **docs/biz\_pivot\_prd\.md**：产品需求文档V1.1，包含完整功能模块、权限体系、业务规则
+- **docs/biz\_pivot\_prd\.md**：产品需求文档V1.2，包含完整功能模块、权限体系、业务规则
 
 - **docs/knowledge/**：存放所有RAG私有知识库文档，统一命名 `xxx_xxx.md`
 

@@ -14,9 +14,21 @@ DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 100
 PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
-# ============ 消息角色 ============
-MSG_ROLE_USER = 0
-MSG_ROLE_AI = 1
+# ============ 消息角色（chat_message.role，枚举） ============
+MSG_ROLE_SYSTEM = 0       # 系统消息
+MSG_ROLE_USER = 1         # 用户消息
+MSG_ROLE_ASSISTANT = 2    # AI 助手消息
+MSG_ROLE_TOOL = 3         # 工具消息
+
+MSG_ROLE_NAMES = {
+    MSG_ROLE_SYSTEM: "系统",
+    MSG_ROLE_USER: "用户",
+    MSG_ROLE_ASSISTANT: "助手",
+    MSG_ROLE_TOOL: "工具",
+}
+
+# ============ 聊天角色默认温度 ============
+DEFAULT_TEMPERATURE = 0.7
 
 # ============ Token / 上下文 阈值 ============
 CONTEXT_MAX_TOKENS = 8000                 # 单次请求上下文最大 token
@@ -64,20 +76,49 @@ REDIS_KEY_USER_DOCS = "user:docs:{uid}"              # 用户可访问文档 ID 
 REDIS_KEY_ROLE_MENU = "role:menu:{role_id}"          # 角色可访问菜单
 REDIS_KEY_KB_META = "kb:meta:{kb_id}"                # 文档元信息缓存
 
-# ============ 系统菜单种子（PRD 3.1 节，启动自动写入 sys_menu） ============
-MENU_SEEDS = [
-    {"name": "部门管理",   "path": "/admin/dept",       "icon": "OfficeBuilding", "sort_order": 1, "page_type": "tree"},
-    {"name": "用户管理",   "path": "/admin/user",       "icon": "User",           "sort_order": 2, "page_type": "list"},
-    {"name": "角色管理",   "path": "/admin/role",       "icon": "Avatar",         "sort_order": 3, "page_type": "list"},
-    {"name": "角色授权",   "path": "/admin/permission", "icon": "Key",            "sort_order": 4, "page_type": "list"},
-    {"name": "知识库分类", "path": "/admin/category",   "icon": "FolderOpened",   "sort_order": 5, "page_type": "tree"},
-    {"name": "知识库上传", "path": "/admin/knowledge",  "icon": "Upload",         "sort_order": 6, "page_type": "list"},
-]
-
-# 菜单权限标识（用于后端二次拦截）
+# ============ 菜单权限标识（用于后端二次拦截） ============
 MENU_CODE_DEPT = "dept:manage"
 MENU_CODE_USER = "user:manage"
 MENU_CODE_ROLE = "role:manage"
 MENU_CODE_PERMISSION = "permission:grant"
 MENU_CODE_CATEGORY = "category:manage"
 MENU_CODE_KNOWLEDGE = "knowledge:upload"
+MENU_CODE_PROVIDER = "provider:manage"
+MENU_CODE_CHAT_ROLE = "chat_role:manage"
+
+# ============ 系统菜单种子（PRD 3.1 节，启动自动写入 sys_menu） ============
+MENU_SEEDS = [
+    {"name": "部门管理",   "path": "/admin/dept",       "icon": "OfficeBuilding", "sort_order": 1, "page_type": "tree", "code": MENU_CODE_DEPT},
+    {"name": "用户管理",   "path": "/admin/user",       "icon": "User",           "sort_order": 2, "page_type": "list", "code": MENU_CODE_USER},
+    {"name": "角色管理",   "path": "/admin/role",       "icon": "Avatar",         "sort_order": 3, "page_type": "list", "code": MENU_CODE_ROLE},
+    {"name": "角色授权",   "path": "/admin/permission", "icon": "Key",            "sort_order": 4, "page_type": "list", "code": MENU_CODE_PERMISSION},
+    {"name": "知识库分类", "path": "/admin/category",   "icon": "FolderOpened",   "sort_order": 5, "page_type": "tree", "code": MENU_CODE_CATEGORY},
+    {"name": "知识库上传", "path": "/admin/knowledge",  "icon": "Upload",         "sort_order": 6, "page_type": "list", "code": MENU_CODE_KNOWLEDGE},
+    {"name": "模型提供商", "path": "/admin/provider",   "icon": "Connection",     "sort_order": 7, "page_type": "list", "code": MENU_CODE_PROVIDER},
+    {"name": "聊天角色",   "path": "/admin/chat-role",  "icon": "ChatDotRound",   "sort_order": 8, "page_type": "list", "code": MENU_CODE_CHAT_ROLE},
+]
+
+# ============ 默认模型提供商（启动种子，来源于 .env LLM 配置） ============
+DEFAULT_PROVIDER_NAME = "默认模型提供商"
+
+# ============ 系统聊天角色种子（系统发起聊天时程序直接指定） ============
+CHAT_ROLE_SEEDS = [
+    {
+        "name": "通用助手",
+        "description": "通用 AI 对话助手，回答企业日常咨询",
+        "system_prompt": "你是商枢 BizPivot 企业智能助手，请以专业、准确、友好的方式回答用户问题。",
+        "temperature": 0.7,
+    },
+    {
+        "name": "意图识别",
+        "description": "系统内置角色：识别用户提问意图",
+        "system_prompt": "你是意图识别模型，请分析用户输入并输出其意图分类（闲聊/知识库问答/数据报表等）。",
+        "temperature": 0.3,
+    },
+    {
+        "name": "语义识别",
+        "description": "系统内置角色：对文本进行语义理解与改写",
+        "system_prompt": "你是语义识别模型，请对用户文本进行语义理解、纠错与规范化改写。",
+        "temperature": 0.3,
+    },
+]

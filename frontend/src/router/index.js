@@ -57,6 +57,18 @@ const routes = [
     component: () => import('@/views/admin/knowledge/index.vue'),
     meta: { title: '知识库上传' },
   },
+  {
+    path: '/admin/provider',
+    name: 'AdminProvider',
+    component: () => import('@/views/admin/provider/index.vue'),
+    meta: { title: '模型提供商' },
+  },
+  {
+    path: '/admin/chat-role',
+    name: 'AdminChatRole',
+    component: () => import('@/views/admin/chatrole/index.vue'),
+    meta: { title: '聊天角色' },
+  },
 ]
 
 const router = createRouter({
