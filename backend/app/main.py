@@ -7,7 +7,15 @@
 """
 
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# 允许直接以脚本方式启动（python app/main.py 或 python backend/app/main.py）。
+# 脚本运行时 sys.path 只含脚本所在目录，需把 backend 目录加入 sys.path 才能导入 app 包。
+# 通过 uvicorn 以「app.main:app」方式启动时 __package__ == "app"，此分支不会执行。
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -102,3 +110,9 @@ app.include_router(role_router, prefix="/api/v1")
 @app.get("/", tags=["根"])
 def root() -> dict:
     return {"name": settings.app_name, "version": settings.app_version, "docs": "/docs"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
