@@ -17,6 +17,9 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.system import router as system_router
 from app.api.v1.provider import router as provider_router
 from app.api.v1.chat_role import router as chat_role_router
+from app.api.v1.dept import router as dept_router
+from app.api.v1.user import router as user_router
+from app.api.v1.role import router as role_router
 from app.config.settings import settings
 from app.core.auth_middleware import AuthMiddleware
 from app.core.exceptions import AppError
@@ -89,8 +92,11 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
 app.include_router(provider_router, prefix="/api/v1")
 app.include_router(chat_role_router, prefix="/api/v1")
+app.include_router(dept_router, prefix="/api/v1")
+app.include_router(user_router, prefix="/api/v1")
+app.include_router(role_router, prefix="/api/v1")
 
-# 后续阶段按模块增量挂载（chat/rag/report/dept/user/role/menu/category）
+# 后续阶段按模块增量挂载（chat/rag/report/menu/category）
 
 
 @app.get("/", tags=["根"])

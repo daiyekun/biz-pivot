@@ -16,7 +16,7 @@ from app.core import permission as perm
 from app.core.database import get_db
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.redis_client import get_redis  # noqa: F401  统一导出
-from app.models.sys import SysUser
+from app.models.sys import SysDepartment, SysUser
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,12 @@ def get_current_user(
         raise UnauthorizedError("用户已被删除")
 
     role_ids = [r.id for r in user.roles] if user.roles else []
-    ctx = perm.build_user_context(user, role_ids)
+    dept_path = None
+    if user.dept_id:
+        dept = db.get(SysDepartment, user.dept_id)
+        if dept is not None:
+            dept_path = dept.path
+    ctx = perm.build_user_context(user, role_ids, dept_path)
     perm.cache_user_context(ctx)
     return CurrentUser(user=user, ctx=ctx)
 

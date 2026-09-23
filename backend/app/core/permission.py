@@ -38,13 +38,18 @@ def is_super_account(account: str) -> bool:
     return account == settings.super_admin_account
 
 
-def build_user_context(user, role_ids: list[int]) -> UserContext:
+def build_user_context(user, role_ids: list[int], dept_path: str | None = None) -> UserContext:
     """根据 sys_user 行与角色列表构建上下文。
 
-    基础版：dept_ids 仅含当前部门，物化路径展开（path -> 祖先链）在
-    阶段三部门模块落地后补齐，此处预留接口。
+    dept_ids 由物化路径展开：`/1/3/5/` -> [5, 3, 1]（当前部门 + 全部祖先部门），
+    用于知识库数据权限的「部门/部门及子部门」判定（数据库设计 3.2 节）。
     """
     dept_ids = [user.dept_id] if user.dept_id else []
+    if dept_path:
+        try:
+            dept_ids = [int(x) for x in dept_path.strip("/").split("/") if x]
+        except ValueError:
+            dept_ids = [user.dept_id] if user.dept_id else []
     return UserContext(
         user_id=user.id,
         account=user.account,

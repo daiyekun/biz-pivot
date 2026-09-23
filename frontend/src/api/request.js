@@ -30,7 +30,16 @@ function onRefreshed(token) {
 }
 
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    const data = response.data
+    // 后端 BizError 等业务异常返回 HTTP 200 + code!=0，需在成功分支内识别并抛错，
+    // 避免「防循环嵌套/删除校验」等失败被前端误判为成功。
+    if (data && typeof data === 'object' && typeof data.code === 'number' && data.code !== 0) {
+      ElMessage.error(data.message || '操作失败')
+      return Promise.reject(new Error(data.message || '操作失败'))
+    }
+    return data
+  },
   async (error) => {
     const { response, config } = error
     const status = response?.status
