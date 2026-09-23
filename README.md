@@ -10,3 +10,6 @@
 
 <img width="3753" height="2403" alt="exported_image (2)" src="https://github.com/user-attachments/assets/8a31cf7a-aa74-4b06-8450-dfca12158589" />
 
+# admin 超级管理员界面管理
+<img width="2542" height="1284" alt="image" src="https://github.com/user-attachments/assets/bec2cf06-7c9f-4fd9-9e09-1e299a02a177" />
+
