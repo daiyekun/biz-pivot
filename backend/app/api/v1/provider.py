@@ -1,17 +1,22 @@
 """模型提供商设置接口（sys_provider）。
 
 阶段一：提供多模型提供商的配置能力（增删改查）。
-鉴权说明：阶段二登录鉴权落地后，本模块接口需追加 require_super_admin 依赖。
+鉴权说明：阶段二起本模块接口统一挂载 require_super_admin（仅超级管理员可管理）。
 """
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_super_admin
 from app.core.database import get_db
 from app.schemas.provider_schema import ProviderCreate, ProviderOut, ProviderUpdate
 from app.services.provider_service import ProviderService
 
-router = APIRouter(prefix="/provider", tags=["模型提供商"])
+router = APIRouter(
+    prefix="/provider",
+    tags=["模型提供商"],
+    dependencies=[Depends(require_super_admin)],
+)
 
 _service = ProviderService()
 

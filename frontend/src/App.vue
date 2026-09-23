@@ -32,6 +32,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getHealth } from '@/api/system'
+import { logout } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -50,8 +51,13 @@ onMounted(async () => {
   }
 })
 
-function onCommand(command) {
+async function onCommand(command) {
   if (command === 'logout') {
+    try {
+      await logout()
+    } catch (e) {
+      // 忽略登出接口异常，前端本地状态照常清理
+    }
     userStore.logout()
     router.push('/login')
   }

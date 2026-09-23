@@ -1,9 +1,20 @@
 import { defineStore } from 'pinia'
-import { getToken, setToken, clearToken, getUserInfo, setUserInfo, clearUserInfo } from '@/utils/auth'
+import {
+  getToken,
+  setToken,
+  clearToken,
+  getRefreshToken,
+  setRefreshToken,
+  clearRefreshToken,
+  getUserInfo,
+  setUserInfo,
+  clearUserInfo,
+} from '@/utils/auth'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: getToken() || '',
+    refreshToken: getRefreshToken() || '',
     userInfo: getUserInfo() || null,
   }),
   getters: {
@@ -11,10 +22,12 @@ export const useUserStore = defineStore('user', {
     isSuper: (state) => !!state.userInfo?.is_super,
   },
   actions: {
-    setLogin(token, userInfo = null) {
+    setLogin(token, refreshToken, userInfo = null) {
       this.token = token
+      this.refreshToken = refreshToken || ''
       this.userInfo = userInfo
       setToken(token)
+      setRefreshToken(this.refreshToken)
       if (userInfo) setUserInfo(userInfo)
     },
     setUserInfo(userInfo) {
@@ -23,8 +36,10 @@ export const useUserStore = defineStore('user', {
     },
     logout() {
       this.token = ''
+      this.refreshToken = ''
       this.userInfo = null
       clearToken()
+      clearRefreshToken()
       clearUserInfo()
     },
   },

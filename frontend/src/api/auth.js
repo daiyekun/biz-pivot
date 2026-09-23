@@ -1,8 +1,11 @@
 import request from './request'
 
-// 阶段二实现登录接口；此处预留统一封装
 export function login(account, password) {
   return request.post('/auth/login', { account, password })
+}
+
+export function refresh(refreshToken) {
+  return request.post('/auth/refresh', { refresh_token: refreshToken })
 }
 
 export function logout() {

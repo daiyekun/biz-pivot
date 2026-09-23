@@ -13,10 +13,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.system import router as system_router
 from app.api.v1.provider import router as provider_router
 from app.api.v1.chat_role import router as chat_role_router
 from app.config.settings import settings
+from app.core.auth_middleware import AuthMiddleware
 from app.core.exceptions import AppError
 from app.core.tracing import init_tracing
 
@@ -58,6 +60,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------- 全局鉴权拦截（未登录一律拒绝） ----------
+app.add_middleware(AuthMiddleware)
+
 # ---------- 全局异常处理 ----------
 
 @app.exception_handler(AppError)
@@ -80,11 +85,12 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
 
 # ---------- 路由注册 ----------
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
 app.include_router(provider_router, prefix="/api/v1")
 app.include_router(chat_role_router, prefix="/api/v1")
 
-# 后续阶段按模块增量挂载（auth/chat/rag/report/dept/user/role/menu/category）
+# 后续阶段按模块增量挂载（chat/rag/report/dept/user/role/menu/category）
 
 
 @app.get("/", tags=["根"])

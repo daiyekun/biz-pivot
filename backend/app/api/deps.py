@@ -39,7 +39,7 @@ def get_current_user(
     if credentials is None or not credentials.credentials:
         raise UnauthorizedError("未登录或登录已失效")
 
-    payload = auth_core.decode_token(credentials.credentials)
+    payload = auth_core.decode_access_token(credentials.credentials)
     user_id = payload.get("sub")
     if user_id is None:
         raise UnauthorizedError("无效的登录凭证")

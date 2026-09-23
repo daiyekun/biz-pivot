@@ -6,7 +6,7 @@ Token 使用 PyJWT，密钥与有效期来自 settings。
 
 import hashlib
 import hmac
-import os
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -14,9 +14,18 @@ from typing import Any
 import jwt
 
 from app.config.settings import settings
+from app.core import redis_client
 from app.core.exceptions import UnauthorizedError
 
+logger = logging.getLogger(__name__)
+
 PBKDF2_ITERATIONS = 100_000
+
+TOKEN_TYPE_ACCESS = "access"
+TOKEN_TYPE_REFRESH = "refresh"
+
+# Redis 会话 Key（数据库设计 4.3 节 + 会话外置 Redis，分布式无状态）
+SESSION_KEY_TMPL = "auth:session:{uid}"
 
 
 # ============ 密码加密（pwd + slot 加盐） ============
@@ -55,20 +64,33 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def create_token(user_id: int, account: str, is_super: bool = False,
-                 extra: dict[str, Any] | None = None) -> str:
+def _create_token(user_id: int, account: str, is_super: bool,
+                  token_type: str, expire_minutes: int) -> str:
     """签发 JWT Token（含用户身份，供无状态校验）"""
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "account": account,
         "is_super": is_super,
+        "type": token_type,
         "iat": _now(),
-        "exp": _now() + timedelta(minutes=settings.token_expire_minutes),
+        "exp": _now() + timedelta(minutes=expire_minutes),
         "iss": settings.app_name,
     }
-    if extra:
-        payload.update(extra)
     return jwt.encode(payload, settings.secret_key, algorithm=settings.token_algorithm)
+
+
+def create_access_token(user_id: int, account: str, is_super: bool = False) -> str:
+    return _create_token(
+        user_id, account, is_super,
+        TOKEN_TYPE_ACCESS, settings.token_expire_minutes,
+    )
+
+
+def create_refresh_token(user_id: int, account: str, is_super: bool = False) -> str:
+    return _create_token(
+        user_id, account, is_super,
+        TOKEN_TYPE_REFRESH, settings.refresh_token_expire_minutes,
+    )
 
 
 def decode_token(token: str) -> dict[str, Any]:
@@ -86,7 +108,64 @@ def decode_token(token: str) -> dict[str, Any]:
         raise UnauthorizedError("无效的登录凭证")
 
 
-def make_token_pair(user_id: int, account: str, is_super: bool = False,
-                    extra: dict[str, Any] | None = None) -> dict[str, Any]:
-    """生成（后续阶段用于返回 access_token / refresh_token，本期仅 access）"""
-    return {"access_token": create_token(user_id, account, is_super, extra)}
+def decode_access_token(token: str) -> dict[str, Any]:
+    """校验 access token 并强制其类型为 access，防止 refresh token 越权访问。"""
+    payload = decode_token(token)
+    if payload.get("type") != TOKEN_TYPE_ACCESS:
+        raise UnauthorizedError("无效的登录凭证")
+    return payload
+
+
+def decode_refresh_token(token: str) -> dict[str, Any]:
+    """校验 refresh token 并确认其类型，失败抛出 401"""
+    payload = decode_token(token)
+    if payload.get("type") != TOKEN_TYPE_REFRESH:
+        raise UnauthorizedError("无效的刷新凭证")
+    return payload
+
+
+def make_token_pair(user_id: int, account: str, is_super: bool = False) -> dict[str, Any]:
+    """签发 access_token + refresh_token（会话写入 Redis）"""
+    return {
+        "access_token": create_access_token(user_id, account, is_super),
+        "refresh_token": create_refresh_token(user_id, account, is_super),
+        "token_type": "Bearer",
+        "expires_in": settings.token_expire_minutes * 60,
+    }
+
+
+# ============ Redis 会话管理（登录 / 登出 / 刷新） ============
+
+def _session_key(user_id: int) -> str:
+    return SESSION_KEY_TMPL.format(uid=user_id)
+
+
+def save_session(user_id: int, refresh_token: str, account: str, is_super: bool) -> None:
+    """登录 / 刷新成功后将会话写入 Redis（TTL = refresh token 有效期）"""
+    redis_client.set_json(
+        _session_key(user_id),
+        {
+            "refresh_token": refresh_token,
+            "account": account,
+            "is_super": is_super,
+            "login_time": _now().isoformat(),
+        },
+        ex=settings.refresh_token_expire_minutes * 60,
+    )
+
+
+def get_session(user_id: int) -> dict[str, Any] | None:
+    return redis_client.get_json(_session_key(user_id))
+
+
+def clear_session(user_id: int) -> None:
+    redis_client.delete(_session_key(user_id))
+
+
+def session_exists(user_id: int) -> bool:
+    """会话是否存在（用于登出失效校验；Redis 不可用时降级放行，避免全站锁死）"""
+    try:
+        return redis_client.exists(_session_key(user_id))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Redis 会话校验失败（降级放行）：%s", exc)
+        return True

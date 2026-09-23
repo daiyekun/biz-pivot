@@ -66,6 +66,7 @@ class Settings:
         self.secret_key = _get_str("SECRET_KEY", "biz-pivot-secret-key-change-me-2026")
         self.token_algorithm = _get_str("TOKEN_ALGORITHM", "HS256")
         self.token_expire_minutes = _get_int("TOKEN_EXPIRE_MINUTES", 720)
+        self.refresh_token_expire_minutes = _get_int("REFRESH_TOKEN_EXPIRE_MINUTES", 43200)
 
         # ---------- 内置超级管理员 ----------
         self.super_admin_account = _get_str("SUPER_ADMIN_ACCOUNT", "admin")

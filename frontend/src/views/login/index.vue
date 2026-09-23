@@ -28,12 +28,6 @@
           </el-button>
         </el-form-item>
       </el-form>
-
-      <el-divider><span class="divider-text">阶段一演示</span></el-divider>
-      <el-button type="success" plain size="large" class="login-btn" @click="onDemo">
-        跳过登录，进入系统
-      </el-button>
-      <div class="login-tip">登录鉴权接口将在阶段二上线，当前可使用演示入口浏览系统骨架。</div>
     </el-card>
   </div>
 </template>
@@ -42,36 +36,33 @@
 import { reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { login } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const form = reactive({ account: 'admin', password: '' })
+const form = reactive({ account: '', password: '' })
 const loading = ref(false)
 
-function enterSystem() {
-  const redirect = route.query.redirect || '/chat'
-  router.push(redirect)
-}
-
-function onLogin() {
+async function onLogin() {
   if (!form.account || !form.password) {
     ElMessage.warning('请输入账号和密码')
     return
   }
   loading.value = true
-  ElMessage.info('登录接口将在阶段二上线')
-  setTimeout(() => {
+  try {
+    const data = await login(form.account, form.password)
+    userStore.setLogin(data.access_token, data.refresh_token, data.user)
+    ElMessage.success('登录成功')
+    const redirect = route.query.redirect || '/chat'
+    router.push(redirect)
+  } catch (e) {
+    // 错误提示由 request 拦截器统一处理
+  } finally {
     loading.value = false
-  }, 500)
-}
-
-function onDemo() {
-  userStore.setLogin('demo-token', { name: form.account || '管理员', is_super: true })
-  ElMessage.success('已进入演示模式')
-  enterSystem()
+  }
 }
 </script>
 
@@ -99,15 +90,5 @@ function onDemo() {
 }
 .login-btn {
   width: 100%;
-}
-.divider-text {
-  color: #c0c4cc;
-  font-size: 12px;
-}
-.login-tip {
-  margin-top: 16px;
-  font-size: 12px;
-  color: #c0c4cc;
-  text-align: center;
 }
 </style>

@@ -48,28 +48,36 @@ def _get_or_create_root_company(db: Session) -> SysDepartment:
 
 
 def seed_menus(db: Session) -> None:
-    """系统启动自动生成后台管理菜单（幂等）"""
+    """系统启动自动生成后台管理菜单（幂等）。
+
+    除新增缺失菜单外，同时回填历史数据的 `code` 字段（阶段一早期种子曾以路由路径
+    充当 code，现统一对齐 constants.MENU_CODE_*，保证阶段四角色授权正常判定）。
+    """
     created = 0
+    updated = 0
     for m in constants.MENU_SEEDS:
+        expected_code = m.get("code", m["path"])
         exists = db.scalar(select(SysMenu).where(SysMenu.path == m["path"]))
-        if exists is not None:
-            continue
-        db.add(
-            SysMenu(
-                parent_id=0,
-                name=m["name"],
-                path=m["path"],
-                code=m.get("code", m["path"]),
-                icon=m.get("icon"),
-                sort_order=m["sort_order"],
-                page_type=m.get("page_type"),
-                state=0,
+        if exists is None:
+            db.add(
+                SysMenu(
+                    parent_id=0,
+                    name=m["name"],
+                    path=m["path"],
+                    code=expected_code,
+                    icon=m.get("icon"),
+                    sort_order=m["sort_order"],
+                    page_type=m.get("page_type"),
+                    state=0,
+                )
             )
-        )
-        created += 1
-    if created:
+            created += 1
+        elif exists.code != expected_code:
+            exists.code = expected_code
+            updated += 1
+    if created or updated:
         db.commit()
-        logger.info("系统初始化：写入菜单 %s 条", created)
+        logger.info("系统初始化：写入菜单 %s 条，回填 code %s 条", created, updated)
 
 
 def seed_default_provider(db: Session) -> SysProvider | None:
@@ -124,10 +132,19 @@ def seed_chat_roles(db: Session) -> None:
 
 
 def seed_super_admin(db: Session) -> None:
-    """内置超级管理员（唯一、不可删除、不可禁用）。已存在则跳过。"""
+    """内置超级管理员（唯一、不可删除、不可禁用）。
+
+    已存在则跳过；若被异常置为禁用/删除，启动时自愈恢复为启用状态，
+    从数据层面兜底「超级管理员不可禁用/删除」的硬约束。
+    （阶段三用户 CRUD 落地时，业务层同样需拦截对超管账号的禁用/删除操作。）
+    """
     account = settings.super_admin_account
     exists = db.scalar(select(SysUser).where(SysUser.account == account))
     if exists is not None:
+        if exists.state != constants.STATE_NORMAL:
+            exists.state = constants.STATE_NORMAL
+            db.commit()
+            logger.warning("超级管理员 %s 状态异常，已自愈恢复为启用", account)
         return
 
     company = _get_or_create_root_company(db)
